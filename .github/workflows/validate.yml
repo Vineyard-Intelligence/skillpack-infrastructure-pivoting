@@ -1,0 +1,31 @@
+name: validate
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Validate skill pack document(s)
+        run: |
+          python - <<'PY'
+          import glob, json, sys
+          required = {"identifier", "content_type", "name", "version", "description", "overview"}
+          bad = 0
+          for p in sorted(glob.glob("skillpacks/*.json")):
+              d = json.load(open(p))
+              missing = required - set(d)
+              if d.get("content_type") != "vineyard:skillpack":
+                  bad += 1; print(f"::error file={p}::content_type must be vineyard:skillpack")
+              if missing:
+                  bad += 1; print(f"::error file={p}::missing {sorted(missing)}")
+              if not isinstance(d.get("sections", []), list):
+                  bad += 1; print(f"::error file={p}::sections must be a list")
+          print("all skill packs well-formed" if not bad else f"{bad} invalid")
+          sys.exit(1 if bad else 0)
+          PY

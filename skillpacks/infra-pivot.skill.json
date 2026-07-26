@@ -1,0 +1,46 @@
+{
+  "content_type": "vineyard:skillpack",
+  "identifier": "run.vineyard.skillpacks.infra_pivot",
+  "name": "Infrastructure pivoting",
+  "description": "Expand one infrastructure indicator (IP/domain/cert) into its connected footprint, one hop at a time.",
+  "author": "vineyard-run",
+  "version": "1.0.0",
+  "applies_to": [
+    "infrastructure.ip_address",
+    "infrastructure.domain",
+    "infrastructure.certificate",
+    "infrastructure.autonomous_system"
+  ],
+  "triggers": [
+    "pivot",
+    "infrastructure",
+    "related infra",
+    "what else is connected",
+    "관련 인프라",
+    "피벗"
+  ],
+  "requires": [],
+  "overview": "Infrastructure pivoting — turning one indicator (an IP, a domain, a certificate) into\nthe connected footprint around it, one verifiable hop at a time.\n\nUse this when the analyst hands you a single infrastructure indicator and wants \"what else is\nconnected to this\" — not when they want a specific fact about one node.\n\nThe method is: resolve → pivot → corroborate → branch, staging a node/edge for each hop so the\nanalyst can see the chain. Load the section for the hop you are on:\n  - \"dns-pivot\"   — from a domain/IP: resolution, reverse, and the records that expand it\n  - \"cert-pivot\"  — from a certificate/host: shared certs and CT-log siblings\n  - \"asn-pivot\"   — from an IP: the announcing AS and its neighbourhood\n  - \"discipline\"  — when to STOP, and how not to invent links\n\nRead \"discipline\" first if you have not used this skill pack before.",
+  "sections": [
+    {
+      "id": "discipline",
+      "summary": "When to stop, and how not to invent links.",
+      "body": "Pivoting is generative — every hop suggests two more — so the hard part is restraint, not reach.\n\n- One hop, one piece of EVIDENCE. Only stage an edge when a tool result actually ties the two nodes\n  together (a record, a shared cert, an announcing AS). \"They look related\" is not a link.\n- Prefer a plugin over a guess. If the project has a collection plugin that answers the hop (DNS,\n  RDAP, certificate transparency, ASN), call it — its output is the evidence. If no plugin covers\n  it, say so and stop that branch rather than asserting the connection from memory.\n- Shared hosting is not attribution. Two domains on one big cloud IP, or under one popular registrar\n  or CDN, are NOT thereby related. Note the shared infrastructure, but do not draw an \"operated by\"\n  edge from it. Label edges for what the evidence shows (\"resolves to\", \"shares certificate\"), never\n  for a conclusion the evidence does not carry (\"same actor\").\n- Stop when hops stop adding actor-specific signal — when you have reached shared/CDN/registrar\n  infrastructure, or you are three hops out with nothing new. Summarise the chain and hand back.\n- Everything you stage is reviewed. Make each hop a small, separate, labelled change the analyst can\n  accept or reject on its own evidence."
+    },
+    {
+      "id": "dns-pivot",
+      "summary": "From a domain/IP: resolution, reverse, and the records that expand it.",
+      "body": "From a DOMAIN:\n- A / AAAA → the hosting IP(s). Stage a \"resolves to\" edge to each IP node.\n- NS → the nameservers (often the strongest actor signal — self-hosted or niche NS is a real link;\n  a mainstream managed-DNS provider is not).\n- MX → mail infrastructure. CNAME → the alias target, which is itself worth pivoting.\n- TXT → SPF includes and verification tokens; an unusual include or a reused token is a pivot.\n\nFrom an IP:\n- Reverse DNS / PTR for a name. Passive-DNS style \"what else resolved here\" is high value BUT is\n  exactly where shared hosting misleads — treat co-resolving domains as candidates, not links, until\n  something else corroborates.\n\nUse the project's DNS collection plugin for these where one exists (match the node type to the\nplugin's `consumes` list via list_plugins); it stages the records as evidence. If none is installed,\ntell the analyst which hop you cannot take rather than filling it from memory."
+    },
+    {
+      "id": "cert-pivot",
+      "summary": "From a certificate/host: shared certs and CT-log siblings.",
+      "body": "Certificates tie hosts together with real cryptographic evidence, which makes them a strong pivot.\n\n- A host's leaf certificate lists SANs — every hostname it is valid for. Each SAN is a sibling worth\n  a node and a \"shares certificate\" edge.\n- Certificate Transparency logs answer the reverse: which OTHER hosts presented this same certificate\n  (by SHA-256 fingerprint), and what other certs a domain has issued over time.\n- A self-signed or oddly-issued cert reused across hosts is a strong same-operator signal; a common\n  CA's default cert is not.\n\nUse the project's certificate-transparency plugin where present. Stage one edge per corroborated\nsibling, labelled \"shares certificate\" — not \"same actor\"."
+    },
+    {
+      "id": "asn-pivot",
+      "summary": "From an IP: the announcing AS and its neighbourhood.",
+      "body": "An IP's announcing Autonomous System places it in a network neighbourhood.\n\n- Resolve the IP's ASN (number + name) and stage/reuse an autonomous_system node with an\n  \"announced by\" edge. A small, actor-operated AS is a meaningful cluster; a hyperscaler AS\n  (AWS/GCP/Azure/Cloudflare) is background, not a link.\n- The AS's other announced prefixes bound \"where else this operator's IPs could be\" — a search\n  space to check against your other indicators, not a set of links in itself.\n\nUse the project's ASN/routing plugin where present. As always: the AS is context; only stage edges\nto other nodes when a concrete indicator, not mere shared ASN, connects them."
+    }
+  ]
+}
