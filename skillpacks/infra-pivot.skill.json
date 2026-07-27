@@ -4,7 +4,7 @@
   "name": "Infrastructure pivoting",
   "description": "Expand one infrastructure indicator (IP/domain/cert) into its connected footprint, one hop at a time.",
   "author": "vineyard-run",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "applies_to": [
     "infrastructure.ip_address",
     "infrastructure.domain",
@@ -41,6 +41,62 @@
       "id": "asn-pivot",
       "summary": "From an IP: the announcing AS and its neighbourhood.",
       "body": "An IP's announcing Autonomous System places it in a network neighbourhood.\n\n- Resolve the IP's ASN (number + name) and stage/reuse an autonomous_system node with an\n  \"announced by\" edge. A small, actor-operated AS is a meaningful cluster; a hyperscaler AS\n  (AWS/GCP/Azure/Cloudflare) is background, not a link.\n- The AS's other announced prefixes bound \"where else this operator's IPs could be\" — a search\n  space to check against your other indicators, not a set of links in itself.\n\nUse the project's ASN/routing plugin where present. As always: the AS is context; only stage edges\nto other nodes when a concrete indicator, not mere shared ASN, connects them."
+    }
+  ],
+  "starters": [
+    {
+      "id": "expand-indicator",
+      "label": "Expand one indicator",
+      "summary": "From a single IP, domain or certificate to the footprint around it.",
+      "prompt": "Expand the infrastructure around {{indicator}} — what else is connected to it.\nContext: {{context}}.\nWork one verifiable hop at a time and stage a node or edge for each, labelled for the evidence rather than the conclusion. Read \"discipline\" first and stop where you should.",
+      "variables": [
+        {
+          "key": "indicator",
+          "label": "IP, domain or certificate",
+          "placeholder": "example.com",
+          "required": true
+        },
+        {
+          "key": "context",
+          "label": "What you already know (optional)",
+          "placeholder": "seen in a phishing kit, first observed last week",
+          "multiline": true
+        }
+      ]
+    },
+    {
+      "id": "shared-or-related",
+      "label": "Related, or just shared hosting?",
+      "summary": "The question this pack exists to answer carefully.",
+      "prompt": "Two indicators: {{a}} and {{b}}.\nTell me whether the evidence actually ties them to one operator, or whether what they share is background infrastructure — a CDN, a big registrar, a hyperscaler AS. Say how common the shared attribute is, and do not draw an \"operated by\" edge from shared hosting.",
+      "variables": [
+        {
+          "key": "a",
+          "label": "First indicator",
+          "placeholder": "203.0.113.10",
+          "required": true
+        },
+        {
+          "key": "b",
+          "label": "Second indicator",
+          "placeholder": "example.net",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "map-domain",
+      "label": "Map a domain",
+      "summary": "DNS and certificate hops from one domain, with the branches that stop early called out.",
+      "prompt": "Starting from the domain {{domain}}, work the DNS records and certificate siblings and map what you can corroborate.\nWhere a hop needs a collection plugin this project does not have, say which hop you cannot take instead of filling it from memory.",
+      "variables": [
+        {
+          "key": "domain",
+          "label": "Domain",
+          "placeholder": "example.com",
+          "required": true
+        }
+      ]
     }
   ]
 }

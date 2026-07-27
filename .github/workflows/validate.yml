@@ -24,6 +24,21 @@ jobs:
                   bad += 1; print(f"::error file={p}::content_type must be vineyard:skillpack")
               if missing:
                   bad += 1; print(f"::error file={p}::missing {sorted(missing)}")
+              # Starters are optional, but a broken one is worse than none: a placeholder typo
+              # ({{handel}}) reaches the analyst as literal braces in their composer, and a
+              # variable nothing substitutes is a blank they fill for no reason.
+              import re
+              for s in d.get("starters", []) or []:
+                  sid = s.get("id") or "?"
+                  for f in ("id", "label", "prompt"):
+                      if not s.get(f):
+                          bad += 1; print(f"::error file={p}::starter {sid}: missing {f}")
+                  refs = set(re.findall(r"\{\{\s*([\w.-]+)\s*\}\}", s.get("prompt", "")))
+                  keys = {v.get("key") for v in (s.get("variables") or [])}
+                  for miss in sorted(refs - keys):
+                      bad += 1; print(f"::error file={p}::starter {sid}: prompt uses {{{{{miss}}}}} but declares no such variable")
+                  for unused in sorted(keys - refs):
+                      bad += 1; print(f"::error file={p}::starter {sid}: variable '{unused}' is never used in the prompt")
               if not isinstance(d.get("sections", []), list):
                   bad += 1; print(f"::error file={p}::sections must be a list")
           print("all skill packs well-formed" if not bad else f"{bad} invalid")
