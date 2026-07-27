@@ -28,11 +28,25 @@ jobs:
               # ({{handel}}) reaches the analyst as literal braces in their composer, and a
               # variable nothing substitutes is a blank they fill for no reason.
               import re
+              seen_ids = set()
               for s in d.get("starters", []) or []:
                   sid = s.get("id") or "?"
                   for f in ("id", "label", "prompt"):
                       if not s.get(f):
                           bad += 1; print(f"::error file={p}::starter {sid}: missing {f}")
+                  # The app selects by id. Two starters sharing one makes the second unreachable —
+                  # it renders in the list and silently launches the first one's prompt.
+                  if sid in seen_ids:
+                      bad += 1; print(f"::error file={p}::starter id '{sid}' is used more than once")
+                  seen_ids.add(sid)
+                  # Category is optional and free text, but it becomes a chip: a long one wraps the
+                  # picker, and stray whitespace splits what the author meant as one group into two.
+                  cat = s.get("category")
+                  if cat is not None:
+                      if not isinstance(cat, str) or not cat.strip():
+                          bad += 1; print(f"::error file={p}::starter {sid}: category must be a non-empty string")
+                      elif cat != cat.strip() or len(cat) > 40:
+                          bad += 1; print(f"::error file={p}::starter {sid}: category must be trimmed and <= 40 chars")
                   refs = set(re.findall(r"\{\{\s*([\w.-]+)\s*\}\}", s.get("prompt", "")))
                   keys = {v.get("key") for v in (s.get("variables") or [])}
                   for miss in sorted(refs - keys):

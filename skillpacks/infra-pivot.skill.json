@@ -4,7 +4,7 @@
   "name": "Infrastructure pivoting",
   "description": "Expand one infrastructure indicator (IP/domain/cert) into its connected footprint, one hop at a time.",
   "author": "vineyard-run",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "applies_to": [
     "infrastructure.ip_address",
     "infrastructure.domain",
@@ -47,6 +47,7 @@
     {
       "id": "expand-indicator",
       "label": "Expand one indicator",
+      "category": "Expand",
       "summary": "From a single IP, domain or certificate to the footprint around it.",
       "prompt": "Expand the infrastructure around {{indicator}} — what else is connected to it.\nContext: {{context}}.\nWork one verifiable hop at a time and stage a node or edge for each, labelled for the evidence rather than the conclusion. Read \"discipline\" first and stop where you should.",
       "variables": [
@@ -65,8 +66,70 @@
       ]
     },
     {
+      "id": "map-domain",
+      "label": "Map a domain",
+      "category": "Expand",
+      "summary": "DNS and certificate hops from one domain, with the branches that stop early called out.",
+      "prompt": "Starting from the domain {{domain}}, work the DNS records and certificate siblings and map what you can corroborate.\nWhere a hop needs a collection plugin this project does not have, say which hop you cannot take instead of filling it from memory.",
+      "variables": [
+        {
+          "key": "domain",
+          "label": "Domain",
+          "placeholder": "example.com",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "from-certificate",
+      "label": "Start from a certificate",
+      "category": "Expand",
+      "summary": "SANs and CT-log siblings — the strongest pivot in the pack, and the easiest to overreach on.",
+      "prompt": "Start from the certificate {{cert}}.\nEnumerate its SANs and, from the transparency logs, the other hosts that presented it. Stage a sibling per corroborated host with a \"shares certificate\" edge, and tell me which of these look like one operator versus a shared CA default.",
+      "variables": [
+        {
+          "key": "cert",
+          "label": "Certificate fingerprint or host",
+          "placeholder": "sha256:… or example.com:443",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "from-asn",
+      "label": "Explore an AS neighbourhood",
+      "category": "Expand",
+      "summary": "Bound where else an operator's addresses could be — without treating a shared AS as a link.",
+      "prompt": "Take {{asn}} and describe the neighbourhood it defines: who announces it, how large it is, and whether it is an actor-operated network or background infrastructure.\nThen check it against the other indicators already in this case. Only stage an edge where a concrete indicator connects them — a shared AS on its own is not one.",
+      "variables": [
+        {
+          "key": "asn",
+          "label": "ASN or an IP inside it",
+          "placeholder": "AS64496 or 203.0.113.10",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "bulk-triage",
+      "label": "Triage a list of indicators",
+      "category": "Expand",
+      "summary": "One hop each across many indicators, to find out which few deserve the deep dive.",
+      "prompt": "Here is a list of indicators: {{indicators}}.\nTake ONE hop on each and tell me which are worth pursuing and which are background infrastructure. Do not go deep on any of them yet — the point is to find out where the depth is worth spending.",
+      "variables": [
+        {
+          "key": "indicators",
+          "label": "Indicators",
+          "placeholder": "one per line",
+          "required": true,
+          "multiline": true
+        }
+      ]
+    },
+    {
       "id": "shared-or-related",
       "label": "Related, or just shared hosting?",
+      "category": "Corroborate",
       "summary": "The question this pack exists to answer carefully.",
       "prompt": "Two indicators: {{a}} and {{b}}.\nTell me whether the evidence actually ties them to one operator, or whether what they share is background infrastructure — a CDN, a big registrar, a hyperscaler AS. Say how common the shared attribute is, and do not draw an \"operated by\" edge from shared hosting.",
       "variables": [
@@ -85,18 +148,60 @@
       ]
     },
     {
-      "id": "map-domain",
-      "label": "Map a domain",
-      "summary": "DNS and certificate hops from one domain, with the branches that stop early called out.",
-      "prompt": "Starting from the domain {{domain}}, work the DNS records and certificate siblings and map what you can corroborate.\nWhere a hop needs a collection plugin this project does not have, say which hop you cannot take instead of filling it from memory.",
+      "id": "verify-link",
+      "label": "Check a link the case already draws",
+      "category": "Corroborate",
+      "summary": "Audit an existing edge against the evidence actually behind it.",
+      "prompt": "This case links {{a}} to {{b}} as \"{{label}}\".\nCheck whether the evidence supports that label, a weaker one, or nothing at all. If the label claims more than the evidence carries, say what it should say instead — and if the link should not exist, say that plainly.",
       "variables": [
         {
-          "key": "domain",
-          "label": "Domain",
+          "key": "a",
+          "label": "From",
+          "placeholder": "example.com",
+          "required": true
+        },
+        {
+          "key": "b",
+          "label": "To",
+          "placeholder": "203.0.113.10",
+          "required": true
+        },
+        {
+          "key": "label",
+          "label": "The edge label being checked",
+          "placeholder": "operated by",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "hosting-noise",
+      "label": "Strip out shared-hosting noise",
+      "category": "Corroborate",
+      "summary": "Find the links in this case that rest on nothing but background infrastructure.",
+      "prompt": "Go over the infrastructure already in this case and find the links that rest only on shared hosting, a CDN, a mainstream registrar or a hyperscaler AS.\nFor each, say how many other parties share that same attribute, so I can see how little the link is worth. Propose the removals rather than making them silently."
+    },
+    {
+      "id": "footprint-summary",
+      "label": "Summarise the footprint",
+      "category": "Report",
+      "summary": "The chain so far, with each hop's evidence and each branch that stopped.",
+      "prompt": "Summarise the infrastructure footprint this case has established around {{subject}}.\nWalk the chain hop by hop with the evidence behind each, and be explicit about the branches that stopped — whether they stopped because they ran out of signal or because no installed plugin could take the hop. Those are different, and only one of them is finished.",
+      "variables": [
+        {
+          "key": "subject",
+          "label": "Starting indicator",
           "placeholder": "example.com",
           "required": true
         }
       ]
+    },
+    {
+      "id": "next-hops",
+      "label": "What is left to check?",
+      "category": "Report",
+      "summary": "Turn the unfinished branches into a ranked list of next hops.",
+      "prompt": "List the hops this case has not taken yet, ranked by how much actor-specific signal each would add.\nSay which ones the installed plugins can answer now and which need something this project does not have. Do not take the hops — I want the plan first."
     }
   ]
 }
