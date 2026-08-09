@@ -4,7 +4,7 @@
   "name": "Infrastructure pivoting",
   "description": "Expand one infrastructure indicator (IP/domain/cert) into its connected footprint, one hop at a time.",
   "author": "vineyard-run",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "applies_to": [
     "infrastructure.ip_address",
     "infrastructure.domain",
@@ -12,35 +12,41 @@
     "infrastructure.autonomous_system"
   ],
   "triggers": [
-    "pivot",
     "infrastructure",
-    "related infra",
-    "what else is connected",
-    "관련 인프라",
+    "pivot",
+    "domain",
+    "ip",
+    "certificate",
+    "asn",
+    "hosting",
+    "인프라",
+    "도메인",
+    "아이피",
+    "인증서",
     "피벗"
   ],
   "requires": [],
-  "overview": "Infrastructure pivoting — turning one indicator (an IP, a domain, a certificate) into\nthe connected footprint around it, one verifiable hop at a time.\n\nUse this when the analyst hands you a single infrastructure indicator and wants \"what else is\nconnected to this\" — not when they want a specific fact about one node.\n\nThe method is: resolve → pivot → corroborate → branch, staging a node/edge for each hop so the\nanalyst can see the chain. Load the section for the hop you are on:\n  - \"dns-pivot\"   — from a domain/IP: resolution, reverse, and the records that expand it\n  - \"cert-pivot\"  — from a certificate/host: shared certs and CT-log siblings\n  - \"asn-pivot\"   — from an IP: the announcing AS and its neighbourhood\n  - \"discipline\"  — when to STOP, and how not to invent links\n\nRead \"discipline\" first if you have not used this skill pack before.",
+  "overview": "Infrastructure pivoting — turning one indicator (an IP, a domain, a certificate) into\nthe connected footprint around it, one verifiable hop at a time.\n\nUse this when the analyst hands you a single infrastructure indicator and wants \"what else is\nconnected to this\" — not when they want a specific fact about one node.\n\nThe method is: resolve -> pivot -> corroborate -> branch, staging a node/edge for each hop so the\nanalyst can see the chain. Load the section for the hop you are on:\n  - \"dns-pivot\"   - from a domain/IP: resolution, reverse, and the records that expand it\n  - \"cert-pivot\"  - from a certificate/host: shared certs and CT-log siblings\n  - \"asn-pivot\"   - from an IP: the announcing AS and its neighbourhood\n  - \"discipline\"  - when to STOP, and how not to invent links\n\nRead \"discipline\" first if you have not used this skill pack before.\n\nTHREE RULES THAT APPLY TO EVERY SECTION, so they are not repeated in each:\n\n1. BUDGET. Three hops from the seed indicator unless the analyst asks for more, and stop a branch\n   early when a pass adds nothing that was not already in the graph. When you stop, name the\n   frontier you did not expand — the analyst decides whether to spend more, not you.\n\n2. PLUGINS, NOT MEMORY. Before a hop, match the node's type against the `consumes` list from\n   list_plugins and call the plugin that covers it. Its output is the evidence. Where nothing\n   installed covers the hop, say which hop you cannot take and stop that branch. Never supply the\n   answer from your own knowledge of the internet — a plausible ASN or registrar you recalled is\n   indistinguishable, on the canvas, from one a tool returned.\n\n3. REPORT IN FOUR PARTS, always in this order: what the evidence establishes; what is a candidate\n   and what would settle it; what you deliberately did not link and why; what nothing installed here\n   can reach.\n\nHANDING OFF: when a hop produces a person, an email address, a handle or an account — a WHOIS\nregistrant, a contact address, a name in a certificate — that is where this pack ends and\n\"Account & identity pivoting\" begins. Say so rather than guessing at attribution here.",
   "sections": [
     {
       "id": "discipline",
       "summary": "When to stop, and how not to invent links.",
-      "body": "Pivoting is generative — every hop suggests two more — so the hard part is restraint, not reach.\n\n- One hop, one piece of EVIDENCE. Only stage an edge when a tool result actually ties the two nodes\n  together (a record, a shared cert, an announcing AS). \"They look related\" is not a link.\n- Prefer a plugin over a guess. If the project has a collection plugin that answers the hop (DNS,\n  RDAP, certificate transparency, ASN), call it — its output is the evidence. If no plugin covers\n  it, say so and stop that branch rather than asserting the connection from memory.\n- Shared hosting is not attribution. Two domains on one big cloud IP, or under one popular registrar\n  or CDN, are NOT thereby related. Note the shared infrastructure, but do not draw an \"operated by\"\n  edge from it. Label edges for what the evidence shows (\"resolves to\", \"shares certificate\"), never\n  for a conclusion the evidence does not carry (\"same actor\").\n- Stop when hops stop adding actor-specific signal — when you have reached shared/CDN/registrar\n  infrastructure, or you are three hops out with nothing new. Summarise the chain and hand back.\n- Everything you stage is reviewed. Make each hop a small, separate, labelled change the analyst can\n  accept or reject on its own evidence."
+      "body": "Pivoting is generative — every hop suggests two more — so the hard part is restraint, not reach.\n\nTHE THRESHOLD. Stage an EDGE only when a tool result names both endpoints together: a DNS record, a\nshared certificate fingerprint, an announcing AS, a registry allocation. One such result is enough.\nNothing else is — not proximity, not plausibility, not two facts that would fit the same story.\nWhere you have less, stage the node and say what would settle the link.\n\nLABEL FOR THE EVIDENCE, NEVER THE CONCLUSION. \"resolves to\", \"shares certificate\", \"announced by\"\nare all things a tool observed. \"same actor\", \"operated by\", \"belongs to\" are conclusions, and the\nanalyst draws those, not you.\n\nWORKED EXAMPLE — the mistake this section exists to prevent:\n\n  evil.test and shop.test both resolve to 104.21.0.1, and both certificates are issued by\n  Let's Encrypt.\n  WRONG: evil.test --same actor--> shop.test. Two facts, both true, and the conclusion is invented.\n  RIGHT: two \"resolves to\" edges to one IP node, and a note that 104.21.0.1 is Cloudflare — which\n         makes co-residence background, not signal. No edge between the two domains.\n         What WOULD settle it: the same certificate fingerprint on both, a shared self-hosted\n         nameserver, or one domain's WHOIS naming the other's registrant.\n\nBACKGROUND vs SIGNAL, which is the whole judgement:\n  background — hyperscaler IP (AWS/GCP/Azure/Cloudflare), mainstream managed DNS, a popular\n               registrar, a common CA's certificate, a hyperscaler AS\n  signal     — a self-hosted or niche nameserver, a small actor-operated AS, a self-signed or\n               oddly-issued certificate reused across hosts, a rare reused TXT token\n\nSTOP when the next hop would only reach background, when a pass adds nothing new, or at three hops.\nThen summarise the chain and hand back. Everything you stage is reviewed, so make each hop a small,\nseparate, labelled change the analyst can accept or reject on its own evidence."
     },
     {
       "id": "dns-pivot",
       "summary": "From a domain/IP: resolution, reverse, and the records that expand it.",
-      "body": "From a DOMAIN:\n- A / AAAA → the hosting IP(s). Stage a \"resolves to\" edge to each IP node.\n- NS → the nameservers (often the strongest actor signal — self-hosted or niche NS is a real link;\n  a mainstream managed-DNS provider is not).\n- MX → mail infrastructure. CNAME → the alias target, which is itself worth pivoting.\n- TXT → SPF includes and verification tokens; an unusual include or a reused token is a pivot.\n\nFrom an IP:\n- Reverse DNS / PTR for a name. Passive-DNS style \"what else resolved here\" is high value BUT is\n  exactly where shared hosting misleads — treat co-resolving domains as candidates, not links, until\n  something else corroborates.\n\nUse the project's DNS collection plugin for these where one exists (match the node type to the\nplugin's `consumes` list via list_plugins); it stages the records as evidence. If none is installed,\ntell the analyst which hop you cannot take rather than filling it from memory."
+      "body": "From a DOMAIN:\n- A / AAAA -> the hosting IP(s). Stage a \"resolves to\" edge to each IP node.\n- NS -> the nameservers (often the strongest actor signal — self-hosted or niche NS is a real link;\n  a mainstream managed-DNS provider is background).\n- MX -> mail infrastructure. CNAME -> the alias target, which is itself worth pivoting.\n- TXT -> SPF includes and verification tokens; an unusual include or a reused token is a pivot.\n\nFrom an IP:\n- Reverse DNS / PTR for a name.\n- Passive-DNS style \"what else resolved here\" is high value AND is exactly where shared hosting\n  misleads. Co-resolving domains are CANDIDATES. Stage them as nodes with no edge between them, and\n  say what would promote one: a shared certificate, a shared niche nameserver, a common registrant.\n\nWORKED EXAMPLE:\n  a.test has NS ns1.a-hosting.test, and b.test has the same NS.\n  If a-hosting.test is a commercial DNS provider with public signup: background. No link.\n  If it is a nameserver that serves only these two domains: signal. Stage the nameserver as a node\n  and both \"uses nameserver\" edges to it — still not an edge between a.test and b.test, because\n  what you observed is a shared server, and that is what the graph should say."
     },
     {
       "id": "cert-pivot",
       "summary": "From a certificate/host: shared certs and CT-log siblings.",
-      "body": "Certificates tie hosts together with real cryptographic evidence, which makes them a strong pivot.\n\n- A host's leaf certificate lists SANs — every hostname it is valid for. Each SAN is a sibling worth\n  a node and a \"shares certificate\" edge.\n- Certificate Transparency logs answer the reverse: which OTHER hosts presented this same certificate\n  (by SHA-256 fingerprint), and what other certs a domain has issued over time.\n- A self-signed or oddly-issued cert reused across hosts is a strong same-operator signal; a common\n  CA's default cert is not.\n\nUse the project's certificate-transparency plugin where present. Stage one edge per corroborated\nsibling, labelled \"shares certificate\" — not \"same actor\"."
+      "body": "Certificates tie hosts together with real cryptographic evidence, which makes them the strongest\npivot in this pack — and the one most often over-read.\n\n- A host's leaf certificate lists SANs — every hostname it is valid for. Each SAN is a sibling worth\n  a node and a \"shares certificate\" edge.\n- Certificate Transparency logs answer the reverse: which OTHER hosts presented this same\n  certificate (by SHA-256 fingerprint), and what other certs a domain has issued over time.\n\nTHE FINGERPRINT IS THE EVIDENCE. Same SHA-256 = same certificate = a real link. Same ISSUER is not:\nLet's Encrypt has issued for a large fraction of the web.\n\nWORKED EXAMPLE:\n  Two hosts both present a certificate issued by \"R11, Let's Encrypt\".\n  WRONG: a \"shares certificate\" edge. They share an issuer, which is background.\n  RIGHT: no edge. Compare fingerprints; if they match, the edge is correct and strong.\n\nA self-signed or oddly-issued certificate reused across hosts is a strong same-operator signal —\nstill label the edge \"shares certificate\", and let the analyst draw the operator conclusion."
     },
     {
       "id": "asn-pivot",
       "summary": "From an IP: the announcing AS and its neighbourhood.",
-      "body": "An IP's announcing Autonomous System places it in a network neighbourhood.\n\n- Resolve the IP's ASN (number + name) and stage/reuse an autonomous_system node with an\n  \"announced by\" edge. A small, actor-operated AS is a meaningful cluster; a hyperscaler AS\n  (AWS/GCP/Azure/Cloudflare) is background, not a link.\n- The AS's other announced prefixes bound \"where else this operator's IPs could be\" — a search\n  space to check against your other indicators, not a set of links in itself.\n\nUse the project's ASN/routing plugin where present. As always: the AS is context; only stage edges\nto other nodes when a concrete indicator, not mere shared ASN, connects them."
+      "body": "An IP's announcing Autonomous System places it in a network neighbourhood.\n\n- Resolve the IP's ASN (number + name) and stage/reuse an autonomous_system node with an\n  \"announced by\" edge.\n- The AS's other announced prefixes bound \"where else this operator's IPs could be\" — a search\n  space to check against your other indicators, not a set of links in itself.\n\nSIZE DECIDES WHETHER IT MEANS ANYTHING. A small, actor-operated AS announcing a handful of prefixes\nis a meaningful cluster. A hyperscaler AS is background — AS15169, AS16509, AS13335 and their peers\nannounce space for millions of unrelated customers.\n\nWORKED EXAMPLE:\n  Two of the case's IPs are both announced by AS13335 (Cloudflare).\n  WRONG: any edge between them, or an \"infrastructure cluster\" conclusion.\n  RIGHT: an \"announced by\" edge from each IP to the AS node, and a sentence saying the shared AS is\n         background here. If instead both were announced by a 2-prefix AS whose name matches the\n         subject organisation, say so — that is a cluster worth reporting."
     }
   ],
   "starters": [
@@ -49,7 +55,7 @@
       "label": "Expand one indicator",
       "category": "Expand",
       "summary": "From a single IP, domain or certificate to the footprint around it.",
-      "prompt": "Expand the infrastructure around {{indicator}} — what else is connected to it.\nContext: {{context}}.\nWork one verifiable hop at a time and stage a node or edge for each, labelled for the evidence rather than the conclusion. Read \"discipline\" first and stop where you should.",
+      "prompt": "Expand the infrastructure around {{indicator}} — what else is connected to it.\nContext: {{context}}.\nWork one verifiable hop at a time and stage a node or edge for each, labelled for the evidence rather than the conclusion. Read \"discipline\" first and stop where you should.\nRead \"discipline\" first, then the section for the hop you are on.",
       "variables": [
         {
           "key": "indicator",
@@ -70,7 +76,7 @@
       "label": "Map a domain",
       "category": "Expand",
       "summary": "DNS and certificate hops from one domain, with the branches that stop early called out.",
-      "prompt": "Starting from the domain {{domain}}, work the DNS records and certificate siblings and map what you can corroborate.\nWhere a hop needs a collection plugin this project does not have, say which hop you cannot take instead of filling it from memory.",
+      "prompt": "Starting from the domain {{domain}}, work the DNS records and certificate siblings and map what you can corroborate.\nWhere a hop needs a collection plugin this project does not have, say which hop you cannot take instead of filling it from memory.\nRead \"dns-pivot\" and \"cert-pivot\".",
       "variables": [
         {
           "key": "domain",
@@ -85,7 +91,7 @@
       "label": "Start from a certificate",
       "category": "Expand",
       "summary": "SANs and CT-log siblings — the strongest pivot in the pack, and the easiest to overreach on.",
-      "prompt": "Start from the certificate {{cert}}.\nEnumerate its SANs and, from the transparency logs, the other hosts that presented it. Stage a sibling per corroborated host with a \"shares certificate\" edge, and tell me which of these look like one operator versus a shared CA default.",
+      "prompt": "Start from the certificate {{cert}}.\nEnumerate its SANs and, from the transparency logs, the other hosts that presented it. Stage a sibling per corroborated host with a \"shares certificate\" edge, and tell me which of these look like one operator versus a shared CA default.\nRead \"cert-pivot\".",
       "variables": [
         {
           "key": "cert",
@@ -100,7 +106,7 @@
       "label": "Explore an AS neighbourhood",
       "category": "Expand",
       "summary": "Bound where else an operator's addresses could be — without treating a shared AS as a link.",
-      "prompt": "Take {{asn}} and describe the neighbourhood it defines: who announces it, how large it is, and whether it is an actor-operated network or background infrastructure.\nThen check it against the other indicators already in this case. Only stage an edge where a concrete indicator connects them — a shared AS on its own is not one.",
+      "prompt": "Take {{asn}} and describe the neighbourhood it defines: who announces it, how large it is, and whether it is an actor-operated network or background infrastructure.\nThen check it against the other indicators already in this case. Only stage an edge where a concrete indicator connects them — a shared AS on its own is not one.\nRead \"asn-pivot\".",
       "variables": [
         {
           "key": "asn",
@@ -115,7 +121,7 @@
       "label": "Triage a list of indicators",
       "category": "Expand",
       "summary": "One hop each across many indicators, to find out which few deserve the deep dive.",
-      "prompt": "Here is a list of indicators: {{indicators}}.\nTake ONE hop on each and tell me which are worth pursuing and which are background infrastructure. Do not go deep on any of them yet — the point is to find out where the depth is worth spending.",
+      "prompt": "Here is a list of indicators: {{indicators}}.\nTake ONE hop on each and tell me which are worth pursuing and which are background infrastructure. Do not go deep on any of them yet — the point is to find out where the depth is worth spending.\nRead \"discipline\" — the background-vs-signal table is the whole task here.",
       "variables": [
         {
           "key": "indicators",
@@ -131,7 +137,7 @@
       "label": "Related, or just shared hosting?",
       "category": "Corroborate",
       "summary": "The question this pack exists to answer carefully.",
-      "prompt": "Two indicators: {{a}} and {{b}}.\nTell me whether the evidence actually ties them to one operator, or whether what they share is background infrastructure — a CDN, a big registrar, a hyperscaler AS. Say how common the shared attribute is, and do not draw an \"operated by\" edge from shared hosting.",
+      "prompt": "Two indicators: {{a}} and {{b}}.\nTell me whether the evidence actually ties them to one operator, or whether what they share is background infrastructure — a CDN, a big registrar, a hyperscaler AS. Say how common the shared attribute is, and do not draw an \"operated by\" edge from shared hosting.\nRead \"discipline\" first.",
       "variables": [
         {
           "key": "a",
@@ -152,7 +158,7 @@
       "label": "Check a link the case already draws",
       "category": "Corroborate",
       "summary": "Audit an existing edge against the evidence actually behind it.",
-      "prompt": "This case links {{a}} to {{b}} as \"{{label}}\".\nCheck whether the evidence supports that label, a weaker one, or nothing at all. If the label claims more than the evidence carries, say what it should say instead — and if the link should not exist, say that plainly.",
+      "prompt": "This case links {{a}} to {{b}} as \"{{label}}\".\nCheck whether the evidence supports that label, a weaker one, or nothing at all. If the label claims more than the evidence carries, say what it should say instead — and if the link should not exist, say that plainly.\nRead \"discipline\" first.",
       "variables": [
         {
           "key": "a",
@@ -179,14 +185,14 @@
       "label": "Strip out shared-hosting noise",
       "category": "Corroborate",
       "summary": "Find the links in this case that rest on nothing but background infrastructure.",
-      "prompt": "Go over the infrastructure already in this case and find the links that rest only on shared hosting, a CDN, a mainstream registrar or a hyperscaler AS.\nFor each, say how many other parties share that same attribute, so I can see how little the link is worth. Propose the removals rather than making them silently."
+      "prompt": "Go over the infrastructure already in this case and find the links that rest only on shared hosting, a CDN, a mainstream registrar or a hyperscaler AS.\nFor each, say how many other parties share that same attribute, so I can see how little the link is worth. Propose the removals rather than making them silently.\nRead \"discipline\" — its background-vs-signal table is the test to apply."
     },
     {
       "id": "footprint-summary",
       "label": "Summarise the footprint",
       "category": "Report",
       "summary": "The chain so far, with each hop's evidence and each branch that stopped.",
-      "prompt": "Summarise the infrastructure footprint this case has established around {{subject}}.\nWalk the chain hop by hop with the evidence behind each, and be explicit about the branches that stopped — whether they stopped because they ran out of signal or because no installed plugin could take the hop. Those are different, and only one of them is finished.",
+      "prompt": "Summarise the infrastructure footprint this case has established around {{subject}}.\nWalk the chain hop by hop with the evidence behind each, and be explicit about the branches that stopped — whether they stopped because they ran out of signal or because no installed plugin could take the hop. Those are different, and only one of them is finished.\nReport in the four parts the overview names.",
       "variables": [
         {
           "key": "subject",
@@ -201,7 +207,7 @@
       "label": "What is left to check?",
       "category": "Report",
       "summary": "Turn the unfinished branches into a ranked list of next hops.",
-      "prompt": "List the hops this case has not taken yet, ranked by how much actor-specific signal each would add.\nSay which ones the installed plugins can answer now and which need something this project does not have. Do not take the hops — I want the plan first."
+      "prompt": "List the hops this case has not taken yet, ranked by how much actor-specific signal each would add.\nSay which ones the installed plugins can answer now and which need something this project does not have. Do not take the hops — I want the plan first.\nReport in the four parts the overview names."
     }
   ]
 }
