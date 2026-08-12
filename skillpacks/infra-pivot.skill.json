@@ -4,7 +4,7 @@
   "name": "Infrastructure pivoting",
   "description": "Expand one infrastructure indicator (IP/domain/cert) into its connected footprint, one hop at a time.",
   "author": "VINEYARD",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "applies_to": [
     "infrastructure.ip_address",
     "infrastructure.domain",
@@ -23,15 +23,30 @@
     "도메인",
     "아이피",
     "인증서",
-    "피벗"
+    "피벗",
+    "웹",
+    "헤더",
+    "파비콘",
+    "favicon",
+    "cdn",
+    "waf",
+    "핑거프린트",
+    "기술스택",
+    "wayback",
+    "과거 기록"
   ],
   "requires": [],
-  "overview": "Infrastructure pivoting — turning one indicator (an IP, a domain, a certificate) into\nthe connected footprint around it, one verifiable hop at a time.\n\nUse this when the analyst hands you a single infrastructure indicator and wants \"what else is\nconnected to this\" — not when they want a specific fact about one node.\n\nThe method is: resolve -> pivot -> corroborate -> branch, staging a node/edge for each hop so the\nanalyst can see the chain. Load the section for the hop you are on:\n  - \"dns-pivot\"   - from a domain/IP: resolution, reverse, and the records that expand it\n  - \"cert-pivot\"  - from a certificate/host: shared certs and CT-log siblings\n  - \"asn-pivot\"   - from an IP: the announcing AS and its neighbourhood\n  - \"discipline\"  - when to STOP, and how not to invent links\n\nRead \"discipline\" first if you have not used this skill pack before.\n\nTHREE RULES THAT APPLY TO EVERY SECTION, so they are not repeated in each:\n\n1. BUDGET. Three hops from the seed indicator unless the analyst asks for more, and stop a branch\n   early when a pass adds nothing that was not already in the graph. When you stop, name the\n   frontier you did not expand — the analyst decides whether to spend more, not you.\n\n2. PLUGINS, NOT MEMORY. Before a hop, match the node's type against the `consumes` list from\n   list_plugins and call the plugin that covers it. Its output is the evidence. Where nothing\n   installed covers the hop, say which hop you cannot take and stop that branch. Never supply the\n   answer from your own knowledge of the internet — a plausible ASN or registrar you recalled is\n   indistinguishable, on the canvas, from one a tool returned.\n\n3. REPORT IN FOUR PARTS, always in this order: what the evidence establishes; what is a candidate\n   and what would settle it; what you deliberately did not link and why; what nothing installed here\n   can reach.\n\nHANDING OFF: when a hop produces a person, an email address, a handle or an account — a WHOIS\nregistrant, a contact address, a name in a certificate — that is where this pack ends and\n\"Account & identity pivoting\" begins. Say so rather than guessing at attribution here.",
+  "overview": "Infrastructure pivoting — turning one indicator (an IP, a domain, a certificate) into\nthe connected footprint around it, one verifiable hop at a time.\n\nUse this when the analyst hands you a single infrastructure indicator and wants \"what else is\nconnected to this\" — not when they want a specific fact about one node.\n\nThe method is: resolve -> pivot -> corroborate -> branch, staging a node/edge for each hop so the\nanalyst can see the chain. Load the section for the hop you are on:\n  - \"dns-pivot\"   - from a domain/IP: resolution, reverse, and the records that expand it\n  - \"cert-pivot\"  - from a certificate/host: shared certs and CT-log siblings\n  - \"asn-pivot\"    - from an IP: the announcing AS and its neighbourhood\n  - \"web-footprint\" - from a URL: the HTTP-layer fingerprints that cluster hosts by what they serve\n  - \"cdn-origin\"    - from a host behind a CDN/WAF: what is really behind the front\n  - \"historical\"    - from a domain/URL: what the past says that today hides\n  - \"prioritize\"    - when you hold many indicators: which seed to expand first\n  - \"discipline\"    - when to STOP, and how not to invent links\n\nRead \"discipline\" first if you have not used this skill pack before.\n\nTHREE RULES THAT APPLY TO EVERY SECTION, so they are not repeated in each:\n\n1. BUDGET. Three hops from the seed indicator unless the analyst asks for more, and stop a branch\n   early when a pass adds nothing that was not already in the graph. When you stop, name the\n   frontier you did not expand — the analyst decides whether to spend more, not you.\n\n2. PLUGINS, NOT MEMORY. Before a hop, match the node's type against the `consumes` list from\n   list_plugins and call the plugin that covers it. Its output is the evidence. Where nothing\n   installed covers the hop, say which hop you cannot take and stop that branch. Never supply the\n   answer from your own knowledge of the internet — a plausible ASN or registrar you recalled is\n   indistinguishable, on the canvas, from one a tool returned.\n\n3. REPORT IN FOUR PARTS, always in this order: what the evidence establishes; what is a candidate\n   and what would settle it; what you deliberately did not link and why; what nothing installed here\n   can reach.\n\nHANDING OFF: when a hop produces a person, an email address, a handle or an account — a WHOIS\nregistrant, a contact address, a name in a certificate — that is where this pack ends and\n\"Account & identity pivoting\" begins. Say so rather than guessing at attribution here.",
   "sections": [
     {
       "id": "discipline",
       "summary": "When to stop, and how not to invent links.",
       "body": "Pivoting is generative — every hop suggests two more — so the hard part is restraint, not reach.\n\nTHE THRESHOLD. Stage an EDGE only when a tool result names both endpoints together: a DNS record, a\nshared certificate fingerprint, an announcing AS, a registry allocation. One such result is enough.\nNothing else is — not proximity, not plausibility, not two facts that would fit the same story.\nWhere you have less, stage the node and say what would settle the link.\n\nLABEL FOR THE EVIDENCE, NEVER THE CONCLUSION. \"resolves to\", \"shares certificate\", \"announced by\"\nare all things a tool observed. \"same actor\", \"operated by\", \"belongs to\" are conclusions, and the\nanalyst draws those, not you.\n\nWORKED EXAMPLE — the mistake this section exists to prevent:\n\n  evil.test and shop.test both resolve to 104.21.0.1, and both certificates are issued by\n  Let's Encrypt.\n  WRONG: evil.test --same actor--> shop.test. Two facts, both true, and the conclusion is invented.\n  RIGHT: two \"resolves to\" edges to one IP node, and a note that 104.21.0.1 is Cloudflare — which\n         makes co-residence background, not signal. No edge between the two domains.\n         What WOULD settle it: the same certificate fingerprint on both, a shared self-hosted\n         nameserver, or one domain's WHOIS naming the other's registrant.\n\nBACKGROUND vs SIGNAL, which is the whole judgement:\n  background — hyperscaler IP (AWS/GCP/Azure/Cloudflare), mainstream managed DNS, a popular\n               registrar, a common CA's certificate, a hyperscaler AS\n  signal     — a self-hosted or niche nameserver, a small actor-operated AS, a self-signed or\n               oddly-issued certificate reused across hosts, a rare reused TXT token\n\nSTOP when the next hop would only reach background, when a pass adds nothing new, or at three hops.\nThen summarise the chain and hand back. Everything you stage is reviewed, so make each hop a small,\nseparate, labelled change the analyst can accept or reject on its own evidence."
+    },
+    {
+      "id": "prioritize",
+      "summary": "When you hold many indicators: which seed to expand first, and why.",
+      "body": "Pivoting everything you hold is noise — each seed starts a chain the analyst must review.\nPick the seeds, and say why them.\n\nRARITY FIRST. An IP in a consumer-ISP range or a self-hosted nameserver carries more actor signal\nthan an AWS address; a domain with a niche TLD or an unusual structure more than a dictionary word\non a registrar's sale page. Rank by how much of the footprint would be background if you expanded it.\n\nRECENCY. First-seen dates and the case's own timeline decide what is worth expanding: an indicator\nfrom last week is a live lead; one from a two-year-old report is a check, not a chain.\n\nTOUCH. Prefer the seed that connects the most unexpanded types — one domain that resolves, serves a\nfingerprint, and has a certificate expands three ways; an IP that only hosts a parked page expands\none.\n\nEXPAND ONE SEED AT A TIME, and do not start the next until the first is reviewed. A pile of\nhalf-pivoted chains reads as a wall of candidates and settles none.\n\nWORKED EXAMPLE:\n  40 phishing URLs, all fronted by the same CDN, from one campaign email.\n  WRONG: pivot all 40 — forty chains, all resolving to the same background front.\n  RIGHT: cluster them by fingerprint first (web-footprint: same favicon/DOM hash = same kit), pivot\n         one URL per cluster, and record the rest as 'same cluster' candidates. The CDN front is\n         background; the clusters are the signal."
     },
     {
       "id": "dns-pivot",
@@ -47,6 +62,21 @@
       "id": "asn-pivot",
       "summary": "From an IP: the announcing AS and its neighbourhood.",
       "body": "An IP's announcing Autonomous System places it in a network neighbourhood.\n\n- Resolve the IP's ASN (number + name) and stage/reuse an autonomous_system node with an\n  \"announced by\" edge.\n- The AS's other announced prefixes bound \"where else this operator's IPs could be\" — a search\n  space to check against your other indicators, not a set of links in itself.\n\nSIZE DECIDES WHETHER IT MEANS ANYTHING. A small, actor-operated AS announcing a handful of prefixes\nis a meaningful cluster. A hyperscaler AS is background — AS15169, AS16509, AS13335 and their peers\nannounce space for millions of unrelated customers.\n\nWORKED EXAMPLE:\n  Two of the case's IPs are both announced by AS13335 (Cloudflare).\n  WRONG: any edge between them, or an \"infrastructure cluster\" conclusion.\n  RIGHT: an \"announced by\" edge from each IP to the AS node, and a sentence saying the shared AS is\n         background here. If instead both were announced by a 2-prefix AS whose name matches the\n         subject organisation, say so — that is a cluster worth reporting."
+    },
+    {
+      "id": "web-footprint",
+      "summary": "From a URL: the HTTP-layer fingerprints that cluster unrelated-looking hosts.",
+      "body": "The DNS/cert/ASN hops cluster hosts by where they sit; the HTTP layer clusters them by what\nthey SERVE — a phishing kit, a scam portal or a darknet storefront is usually a build, and the\nbuild is the fingerprint.\n\nThree fingerprint hops, all from a web.url node (Web Recon pack, DESKTOP ONLY — the probe does\nthe fetching):\n- favicon_hash — MurmurHash3 of the served favicon. Low-entropy: default templates (WordPress\ndefaults, theme demos, boilerplate) are background, and a popular icon is shared by thousands of\nunrelated sites. A RARE favicon reused across hosts is a real cluster.\n- hhhash — hash of the HTTP header SET. Same header set = same stack and often the same kit;\ndifferent stacks behind the same front are the rule at a CDN.\n- dom_hash — hash of the DOM structure. The strongest of the three: two pages built from the same\nkit share a skeleton even after the text and images are swapped.\n\nTHE RULE: one matching hash is a CANDIDATE, two of three is a cluster worth staging, three is\n'presented by the same build' — still an evidence label, never 'same operator'.\nHashes are fingerprints of the SERVED CONTENT: record the capture date, and do not treat a hash as\ntimeless — a kit that rotates its favicon every week defeats a single capture.\n\nWORKED EXAMPLE:\n  Two scam pages share a favicon.\n  WRONG: a 'same operator' edge — the favicon is a free template used by half the internet.\n  RIGHT: a favicon_hash node with a 'serves' edge from each URL, then compare hhhash and dom_hash.\n         Two or three matching hashes -> 'same build' edges. One hash -> candidates, with what\n         would settle them."
+    },
+    {
+      "id": "cdn-origin",
+      "summary": "From a host behind a CDN/WAF: what is really behind the front.",
+      "body": "A CDN/WAF front (cdncheck's 'Detect CDN/WAF' hops) is background — it tells you nothing about\nwho operates the host, and it hides the thing that does. The question is the ORIGIN.\n\nDiscovery routes, in the order that usually pays:\n- CNAME: the 'Detect CDN (Hostname)' hop records the CNAME target. A target that is not the CDN's\nown domain (origin.example-hosting.test, a bare 'origin' label, a different provider's DNS) is the\norigin or its hint.\n- HISTORY: a CDN is usually added LATER. Old DNS records and old snapshots (see 'historical')\noften show the pre-CDN A record — the origin IP, exposed by the past. This is the single most\nreliable route.\n- CERTIFICATE SANs: an origin certificate often lists a management hostname the public one does\nnot. Compare the leaf cert's SANs (cert-pivot) for a non-public sibling.\n- SUBDOMAINS: CT-log enumeration (domain_recon's CT hop) for 'origin.', 'direct.', 'backend.',\n'admin.' labels — the names operators give the thing behind the front.\n- HEADER LEAKS: an error path or a non-CDN response header can name the origin stack; treat a\nsingle leaked header as a candidate, never as proof.\n\nTHE ORIGIN IS A CANDIDATE until two independent observations agree — a CNAME hint plus a\nhistorical IP that now answers on the same port, a SAN plus a matching fingerprint. Stage the\norigin host as its own node with evidence-labelled edges ('CNAME to', 'was hosted at', 'presents\ncertificate'), never 'operated by'.\n\nWORKED EXAMPLE:\n  cdncheck says example.test is behind Cloudflare.\n  WRONG: 'behind a CDN — nothing more to see'. The front is not the host.\n  RIGHT: historical records show 203.0.113.9 as example.test's A record before the CDN was added;\n         that IP still answers on 443 with a cert whose SAN lists origin.example.test. Stage the\n         IP and the hostname, 'was hosted at' + 'presents certificate' edges — and only the\n         analyst decides what that says about who runs the site."
+    },
+    {
+      "id": "historical",
+      "summary": "From a domain/URL: what the past says that today hides.",
+      "body": "The Wayback Machine (Wayback Machine pack: 'Wayback Snapshot History', 'Wayback Availability')\nanswers the questions today's fetch cannot: what the page looked like before the takedown, before\nthe CDN, before the defacement was cleaned — and where the kit's C2 pointed last week.\n\nUse it for:\n- PRE-CDN ORIGINS: the old A record the CDN now hides (see 'cdn-origin').\n- DEFACEMENT / TAKEOVER HISTORY: the defaced version names the group; the snapshot is evidence\nOF THE PAST — a group that defaced a site in 2024 is not thereby the site's operator today.\n- KIT EVOLUTION: earlier snapshots of a scam page show the C2/contact/kit version chain.\n- CONTACT ARCHAEOLOGY: footers and registration pages of old snapshots often carry an email or\nhandle the current page dropped — that is the handoff point to 'Account & identity pivoting'.\n\nLABEL WITH THE DATE: every edge a snapshot supports is dated ('presented on 2024-03-12', 'was\nhosted at'), and a snapshot is a statement about that date, not about today. A 'was' edge is\nweaker than a 'resolves to' edge and must never be upgraded without a current observation.\n\nWORKED EXAMPLE:\n  The defaced site now shows a clean page.\n  WRONG: 'the group operated example.test' — the snapshot shows the defacement, not the operator.\n  RIGHT: the snapshot's content recorded on the url node, the group name staged ONLY where a\n         second source corroborates it, and a dated 'was defaced by' edge — with the current\n         operator explicitly unclaimed."
     }
   ],
   "starters": [
@@ -208,6 +238,57 @@
       "category": "Report",
       "summary": "Turn the unfinished branches into a ranked list of next hops.",
       "prompt": "List the hops this case has not taken yet, ranked by how much actor-specific signal each would add.\nSay which ones the installed plugins can answer now and which need something this project does not have. Do not take the hops — I want the plan first.\nReport in the four parts the overview names."
+    },
+    {
+      "id": "fingerprint-url",
+      "label": "Fingerprint a URL",
+      "category": "Expand",
+      "summary": "Cluster a page against the builds it shares: favicon, header and DOM hashes.",
+      "prompt": "Fingerprint the URL {{url}} — favicon, header set and DOM structure — and tell me what else in this case shares a build with it.\nWhere a fingerprint hop needs a plugin this project does not have (Web Recon is desktop-only), say which hop you cannot take.\nRead \"web-footprint\".",
+      "variables": [
+        {
+          "key": "url",
+          "label": "URL",
+          "placeholder": "https://example.test/login",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "find-origin",
+      "label": "Find the origin behind a CDN",
+      "category": "Expand",
+      "summary": "What is really serving the site behind the Cloudflare/Akamai front.",
+      "prompt": "The host {{host}} is behind a CDN or WAF. Find what is really behind the front — CNAME hints, historical records, certificate SANs, CT-log subdomains — and stage the origin as a candidate, not a conclusion.\nRead \"cdn-origin\".",
+      "variables": [
+        {
+          "key": "host",
+          "label": "Host",
+          "placeholder": "example.test",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "history-check",
+      "label": "What did it look like before?",
+      "category": "Expand",
+      "summary": "Wayback hops: defacement, pre-CDN state, old contacts and kit evolution.",
+      "prompt": "Pull the history of {{url}} — the earliest, the most recent, and any snapshot around {{around}}.\nTell me what the past shows that today hides, with every finding dated. If a snapshot names a person, an email or a handle, hand off to Account & identity pivoting rather than attributing here.\nRead \"historical\".",
+      "variables": [
+        {
+          "key": "url",
+          "label": "URL or domain",
+          "placeholder": "example.test",
+          "required": true
+        },
+        {
+          "key": "around",
+          "label": "Date to look around (optional)",
+          "placeholder": "2024-03",
+          "required": false
+        }
+      ]
     }
   ]
 }
