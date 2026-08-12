@@ -17,9 +17,9 @@ proceed without a specific pack should list that pack in `requires` instead.
 | Field | Value |
 | --- | --- |
 | Identifier | `run.vineyard.skillpacks.infra_pivot` |
-| Applies to | `infrastructure.ip_address`, `infrastructure.domain`, `infrastructure.certificate`, `infrastructure.autonomous_system` |
+| Applies to | `infrastructure.ip_address`, `infrastructure.domain`, `infrastructure.certificate`, `infrastructure.autonomous_system`, `web.url` |
 | Requires | — |
-| Sections | `discipline` — when to stop, and how not to invent links · `dns-pivot` — resolution, reverse and the records that expand it · `cert-pivot` — shared certs and CT-log siblings · `asn-pivot` — the announcing AS and its neighbourhood |
+| Sections | `discipline` — when to stop, and how not to invent links · `prioritize` — which seed to expand first when you hold many indicators · `dns-pivot` — resolution, reverse and the records that expand it · `cert-pivot` — shared certs and CT-log siblings · `asn-pivot` — the announcing AS and its neighbourhood · `web-footprint` — favicon/header/DOM hashes that cluster hosts by what they serve · `cdn-origin` — what is really behind a CDN/WAF front · `historical` — what the past says that today hides (Wayback hops) |
 
 ## Layout
 
