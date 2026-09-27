@@ -19,7 +19,7 @@ proceed without a specific pack should list that pack in `requires` instead.
 | Identifier | `run.vineyard.skillpacks.infra_pivot` |
 | Applies to | `infrastructure.ip_address`, `infrastructure.domain`, `infrastructure.certificate`, `infrastructure.autonomous_system`, `web.url` |
 | Requires | — |
-| Sections | `discipline` — when to stop, and how much a shared attribute is worth · `prioritize` — which seed to expand first when you hold many indicators · `settle` — the check that would decide an open candidate · `dns-pivot` — resolution, reverse and the records that expand it · `cert-pivot` — shared certs and CT-log siblings · `asn-pivot` — the announcing AS and its neighbourhood · `web-footprint` — favicon/header/DOM hashes that cluster hosts by what they serve · `cdn-origin` — what is really behind a CDN/WAF front · `historical` — what the past says that today hides (Wayback hops) |
+| Sections | `discipline` — when to stop, and how much a shared attribute is worth · `prioritize` — which seed to expand first when you hold many indicators · `settle` — the check that would decide an open candidate · `dns-pivot` — resolution, reverse and the records that expand it · `cert-pivot` — shared certs and CT-log siblings · `asn-pivot` — the announcing AS and its neighbourhood · `web-footprint` — favicon/header/DOM hashes that cluster hosts by what they serve · `cdn-origin` — find the origin behind a CDN/WAF and confirm it serves the site (passive routes by default; active routes desktop-only, on the analyst's explicit instruction) · `historical` — what the past says that today hides (Wayback hops) |
 
 ## How it decides that a shared attribute means something
 
