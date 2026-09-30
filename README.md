@@ -4,15 +4,13 @@ The **Infrastructure pivoting** Skill Pack for Vineyard — a text investigation
 can consult when turning one infrastructure indicator (an IP, a domain, a certificate) into the
 connected footprint around it, one verifiable hop at a time.
 
-A Skill Pack runs no code and requests no permissions of its own; it is guidance the agent follows,
-surfaced to it through the `list_skills` / `load_skill` tools. Its only dependency is the Plugin
+A Skill Pack runs no code and requests no permissions of its own; it is guidance the agent follows.
+Its only dependency is the Plugin
 Pack(s) its steps call, declared in `requires`.
 
-`requires` is deliberately empty here. The method is built on the graph read tools and on whatever
-collection plugins the project happens to have: each section names the kind of plugin a hop wants
-(DNS, RDAP, certificate transparency, ASN) and tells the agent to say which hop it cannot take when
-none is installed, rather than filling the gap from memory. A skill pack whose steps genuinely cannot
-proceed without a specific pack should list that pack in `requires` instead.
+`requires` is empty here: the pack works with whatever collection plugins the project has. Each
+section names the kind of plugin a hop wants (DNS, RDAP, certificate transparency, ASN), and when none
+is installed the agent says which hop it cannot take rather than filling the gap from memory.
 
 | Field | Value |
 | --- | --- |
@@ -23,23 +21,19 @@ proceed without a specific pack should list that pack in `requires` instead.
 
 ## How it decides that a shared attribute means something
 
-Not from a fixed list of what counts as background. A two-column table of "hyperscaler = noise,
-niche = signal" has no answer for the middle, which is where most of the internet lives, and the
-agent's own base instructions already say a shared attribute links two things only to the extent it
-is rare.
+Not from a fixed list of what counts as background — a shared attribute links two things only to
+the extent it is rare.
 
-So `discipline` asks for an estimate instead: **if these two were unrelated, how likely is it that
-they would share this?** — that is, how many unrelated parties wear the same attribute. The agent
-judges it from what it knows about the internet, names what the judgement rests on so the analyst can
-check it, and **measures rather than guessing wherever a number is fetchable**: how many domains that
-nameserver serves, how many prefixes that AS announces, how many hosts presented that certificate.
+`discipline` asks for an estimate: **if these two were unrelated, how likely is it that they would
+share this?** — that is, how many unrelated parties wear the same attribute. The agent names what the
+judgement rests on so the analyst can check it, and **measures rather than guessing wherever a number
+is fetchable**: how many domains that nameserver serves, how many prefixes that AS announces, how many
+hosts presented that certificate.
 
-Narrowing is then a product, not a count — but only across attributes that could have come from
-*different acts*. One hosting panel sets the nameservers, the mail records and the certificate in a
-single click, and one kit deployment sets the favicon, the header set and the DOM together, so
-"two of three fingerprints match" is usually one fact observed twice rather than two facts agreeing.
-The edge threshold is unchanged and is not this pack's to relax: a tool result naming both endpoints
-together, or no edge.
+Narrowing is a product, not a count — but only across attributes that could have come from *different
+acts*. One hosting panel sets the nameservers, the mail records and the certificate in a single click,
+so "two of three fingerprints match" is usually one fact observed twice. An edge still needs a tool
+result naming both endpoints together.
 
 ## Layout
 
