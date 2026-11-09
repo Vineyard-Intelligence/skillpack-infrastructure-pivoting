@@ -15,7 +15,7 @@ jobs:
         run: |
           python - <<'PY'
           import glob, json, sys
-          required = {"identifier", "content_type", "name", "version", "description", "overview"}
+          required = {"identifier", "content_type", "name", "version", "summary", "description", "overview"}
           bad = 0
           for p in sorted(glob.glob("skillpacks/*.json")):
               d = json.load(open(p))

@@ -5,7 +5,7 @@ The **Infrastructure pivoting** Skill Pack for Vineyard: a text investigation pl
 | Field | Value |
 | --- | --- |
 | Identifier | `run.vineyard.skillpacks.infra_pivot` |
-| Version | `2.4.0` |
+| Version | `2.5.0` |
 | Applies to | `infrastructure.ip_address`, `infrastructure.domain`, `infrastructure.certificate`, `infrastructure.autonomous_system` |
 | Requires | — |
 
